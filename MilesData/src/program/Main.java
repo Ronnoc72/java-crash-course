@@ -1,9 +1,11 @@
 package program;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 
+import java.util.Arrays;
 import java.util.Scanner;
 
 import java.time.LocalDate;
@@ -33,7 +35,7 @@ public class Main {
         }
     }
 
-    public static void removeFromFile(String filename, String removal) {
+    public static String getDateData(String filename) {
         try {
             File file = new File(filename);
             Scanner myReader = new Scanner(file);
@@ -43,15 +45,61 @@ public class Main {
                 data = String.format("%s%s", str, data);
             }
             myReader.close();
-            String[] dataArray = data.split("-");
-            int middle = dataArray.length/2;
-//            FileWriter myWriter = new FileWriter(filename);
-//            myWriter.write(String.format("%s%s-", data, text));
-//            myWriter.close();
+            return data;
         } catch (IOException e) {
-            System.out.println("A file writing error occurred.");
+            System.out.println("A file reading error occurred.");
             e.printStackTrace();
+            return "";
         }
+    }
+
+    public static int binarySearch(String[] arr, int l, int r, String x) {
+        LocalDate xDate = LocalDate.parse(x);
+        if (r >= l) {
+            int mid = l + (r - l) / 2;
+            if (arr[mid].contains(x)) {
+                return mid;
+            }
+            LocalDate date = LocalDate.parse(arr[mid]);
+            if (date.isBefore(xDate)) {
+                return binarySearch(arr, l, mid - 1, x);
+            }
+            return binarySearch(arr, mid + 1, r, x);
+        }
+        return l;
+    }
+
+    public static void removeFromFile(String filename, String removal) {
+        String data = getDateData(filename);
+        if (!data.isEmpty()) {
+            String[] rawDateArray = data.split(";");
+            String[] dateArray = new String[rawDateArray.length];
+            for (int i = 0; i < rawDateArray.length; i++) {
+                int index = rawDateArray[i].indexOf(":");
+                String sub = rawDateArray[i].substring(index+1, rawDateArray[i].length()-1);
+                dateArray[i] = sub;
+            }
+            int result = binarySearch(dateArray, 0, dateArray.length-1, removal);
+            System.out.println(result);
+            String[] copy = new String[rawDateArray.length - 1];
+            for (int i = 0, j = 0; i < rawDateArray.length; i++) {
+                if (!rawDateArray[i].equals(rawDateArray[result])) {
+                    copy[j++] = rawDateArray[i];
+                }
+            }
+            try {
+                FileWriter myWriter = new FileWriter(filename);
+                myWriter.write(String.join(";", copy));
+                myWriter.close();
+            } catch (IOException e) {
+                System.out.println("A file writing error occurred.");
+                e.printStackTrace();
+            }
+
+        } else {
+            System.out.printf("No Dates in %s%n", FILE);
+        }
+
     }
 
     public static void appendToFile(String filename, String text) {
@@ -65,7 +113,7 @@ public class Main {
             }
             myReader.close();
             FileWriter myWriter = new FileWriter(filename);
-            myWriter.write(String.format("%s%s-", data, text));
+            myWriter.write(String.format("%s%s;", data, text));
             myWriter.close();
         } catch (IOException e) {
             System.out.println("A file writing error occurred.");
@@ -95,8 +143,23 @@ public class Main {
         System.out.println("ADD:");
         System.out.print("How many miles did you run today.> ");
 
+        try {
+            File file = new File(FILE);
+            Scanner myReader = new Scanner(file);
+            String data = "";
+            while (myReader.hasNextLine()) {
+                String str = myReader.nextLine();
+                data = String.format("%s%s", str, data);
+            }
+            myReader.close();
+        } catch (IOException e) {
+            System.out.println("A file writing error occurred.");
+            e.printStackTrace();
+        }
+
         String miles = scanner.nextLine();
         String info = String.format("[%s:%s]", miles, localDate);
+
         appendToFile(FILE, info);
     }
 
@@ -112,7 +175,8 @@ public class Main {
         String[] dateArray = userInput.split("-");
         boolean verifiedDate = false;
         if (dateArray.length == 3) {
-            if (dateArray[0].length() == 4 && dateArray[1].length() == 2 && dateArray[2].length() == 2) {
+            if ((dateArray[0].length() == 4 && dateArray[1].length() == 2 && dateArray[2].length() == 2) &&
+                    (Integer.parseInt(dateArray[1]) < 13 && Integer.parseInt(dateArray[2]) < 32)) {
                 int results = 0;
                 for (String s : dateArray) {
                     for (int j = 0; j < s.length(); j++) {
@@ -128,7 +192,7 @@ public class Main {
             }
         }
         if (verifiedDate) {
-
+            removeFromFile(FILE, userInput);
         } else {
             System.out.println("Invalid Date.");
         }
